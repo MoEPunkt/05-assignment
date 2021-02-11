@@ -1,0 +1,17 @@
+---
+title: "Erdt_Moritz_AssignmentV"
+author: "Moritz Erdt"
+date: "16.02.2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## General Note
+
+This is the solution for the fourth assignment in Data Science Project 
+Management. It has been written by myself without any help or cooperation.
+
+Further, the Git-repository can be found [here](https://github.com/MoEPunkt/05-assignment.git).
