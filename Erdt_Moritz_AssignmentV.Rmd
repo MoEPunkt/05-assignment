@@ -6,7 +6,12 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set
+library(httr)
+library(rlist)
+library(jsonlite)
+
+source("C:/Users/morit/Google Drive/Master/studium/01_WS2021/data-science-project-management/tutorial/05-assignment/api_key.R")
 ```
 
 ## General Note
@@ -14,4 +19,12 @@ knitr::opts_chunk$set(echo = TRUE)
 This is the solution for the fourth assignment in Data Science Project 
 Management. It has been written by myself without any help or cooperation.
 
-Further, the Git-repository can be found [here](https://github.com/MoEPunkt/05-assignment.git).
+## 1. Setting up a new GitHub repository
+A GitHub repository has been created to document the solution properly.
+I can be seen [here](https://github.com/MoEPunkt/05-assignment.git).
+
+save searchstringsso  we can just insert them into a function
+use paste ()
+source api-script
+
+source("<path>")
