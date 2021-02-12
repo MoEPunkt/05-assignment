@@ -10,6 +10,7 @@ knitr::opts_chunk$set
 library(httr)
 library(rlist)
 library(jsonlite)
+library(tidyverse)
 
 source("C:/Users/morit/Google Drive/Master/studium/01_WS2021/data-science-project-management/tutorial/05-assignment/api_key.R")
 ```
@@ -23,8 +24,125 @@ Management. It has been written by myself without any help or cooperation.
 A GitHub repository has been created to document the solution properly.
 I can be seen [here](https://github.com/MoEPunkt/05-assignment.git).
 
-save searchstringsso  we can just insert them into a function
+save searchstrings so  we can just insert them into a function
 use paste ()
 source api-script
 
-source("<path>")
+
+## 2. Getting to know the API
+
+rate limit 5000
+5 requests per second
+
+## 3. Interacting with the API - the basics
+
+default value of the page size of the response : 20
+
+note: https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/#search-venues-v2
+```{r germanVenues}
+
+country <- "DE"
+venues <- GET(url = "https://app.ticketmaster.com/discovery/v2/venues.json?",
+              query = list(locale = "*",
+                           countryCode = country,
+                           apikey = tm_key))
+
+content_venues <- content(venues)
+json_parsed_search <- fromJSON(content(venues, as = "text"))[["_embedded"]][["venues"]]
+
+n = as.numeric(content_venues$page$size)
+
+venue_data <-
+  data.frame(
+    name = character(n),
+    city = character(n),
+    postalCode = character(n),
+    address = character(n),
+    url = character(n),
+    longitude = double(n),
+    latitude = double (n)
+  )
+
+venue_data[, 1] <- json_parsed_search$name
+venue_data[, 2] <- json_parsed_search$city$name
+venue_data[, 3] <- json_parsed_search$postalCode
+venue_data[, 4] <- json_parsed_search$address$line1
+venue_data[, 5] <- json_parsed_search$url
+venue_data[, 6] <- json_parsed_search$location$longitude
+venue_data[, 7] <- json_parsed_search$location$latitude
+
+glimpse(venue_data)
+``` 
+
+The response object delivers a list of length 3. The element "_embedded"
+contains the 20 venues, that are returned. The element "links" contains pointers
+to the current side as well as to the prior, the next and the last page. The 
+element "page" specifies the response: the returned page consists of 20 items,
+in total there are 12238 elements that are stored on 612 pages.
+
+From trying to set `size = 12238`, we receive the message, that the spezified 
+size of elements needs to be less than 500.
+
+Note: replace explicit numbers with variables
+
+## 4 Interacting with the API - advanced
+The request from exercise 3 did not return all event locations in Germany. In
+total, there are 12238 venues that are stored on multiple pages.
+The pages can be iterated by using the parameter `page`.
+
+```{r germanVenues500}
+venues <- GET(url = "https://app.ticketmaster.com/discovery/v2/venues.json?",
+              query = list(locale = "*",
+                           size = 500,
+                           countryCode = country,
+                           apikey = tm_key))
+
+content_venues <- content(venues)
+
+n = as.numeric(content_venues$page$totalElements)
+l = as.numeric(content_venues$page$totalPages)
+
+venue_data <-
+  data.frame(
+    name = character(n),
+    city = character(n),
+    postalCode = character(n),
+    address = character(n),
+    url = character(n),
+    longitude = double(n),
+    latitude = double (n)
+  )
+
+for (i in 1:l){
+  venues <- GET(url = "https://app.ticketmaster.com/discovery/v2/venues.json?",
+              query = list(locale = "*",
+                           size = 500,
+                           countryCode = country,
+                           apikey = tm_key,
+                           page = i-1))
+  json_parsed_search <- fromJSON(content(venues, as = "text"))[["_embedded"]][["venues"]]
+  
+  rows <- as.numeric(nrow(json_parsed_search))
+  
+  if (i == l) {
+    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 1] <- json_parsed_search$name
+    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 2] <- json_parsed_search$city$name
+    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 3] <- json_parsed_search$postalCode
+    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 4] <- json_parsed_search$address$line1
+    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 5] <- json_parsed_search$url
+    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 6] <- json_parsed_search$location$longitude
+    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 7] <- json_parsed_search$location$latitude
+  } else {
+    venue_data[((i-1)*500 + 1):(i*rows), 1] <- json_parsed_search$name
+    venue_data[((i-1)*500 + 1):(i*rows), 2] <- json_parsed_search$city$name
+    venue_data[((i-1)*500 + 1):(i*rows), 3] <- json_parsed_search$postalCode
+    venue_data[((i-1)*500 + 1):(i*rows), 4] <- json_parsed_search$address$line1
+    venue_data[((i-1)*500 + 1):(i*rows), 5] <- json_parsed_search$url
+    venue_data[((i-1)*500 + 1):(i*rows), 6] <- json_parsed_search$location$longitude
+    venue_data[((i-1)*500 + 1):(i*rows), 7] <- json_parsed_search$location$latitude
+  }
+  
+  
+  Sys.sleep(5)
+}
+``` 
