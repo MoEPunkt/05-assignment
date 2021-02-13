@@ -6,11 +6,12 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set
+knitr::opts_chunk$set (echo = TRUE)
 library(httr)
 library(rlist)
 library(jsonlite)
 library(tidyverse)
+library(maps)
 
 source("C:/Users/morit/Google Drive/Master/studium/01_WS2021/data-science-project-management/tutorial/05-assignment/api_key.R")
 ```
@@ -41,37 +42,54 @@ default value of the page size of the response : 20
 note: https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/#search-venues-v2
 ```{r germanVenues}
 
+first.quest <- function(country, key) {
+  # Gets the response from Ticketmaster.com and returns it
+  venues <- GET(url = "https://app.ticketmaster.com/discovery/v2/venues.json?",
+                query = list(locale = "*",
+                             countryCode = country,
+                             apikey = key))
+  venues
+}
+
+first.df <- function(venues) {
+  # Processes the response from Ticketmaster.com
+  json_parsed_search <- fromJSON(content(venues, as = "text"))[["_embedded"]][["venues"]]
+  
+  content_venues <- content(venues)
+  
+  n = as.numeric(content_venues$page$size)
+  
+  venue_data <-
+    data.frame(
+      name = character(n),
+      city = character(n),
+      postalCode = character(n),
+      address = character(n),
+      url = character(n),
+      longitude = double(n),
+      latitude = double (n)
+    )
+  
+  venue_data[, 1] <- json_parsed_search$name
+  venue_data[, 2] <- json_parsed_search$city$name
+  venue_data[, 3] <- json_parsed_search$postalCode
+  venue_data[, 4] <- json_parsed_search$address$line1
+  venue_data[, 5] <- json_parsed_search$url
+  venue_data[, 6] <- as.double(json_parsed_search$location$longitude)
+  venue_data[, 7] <- as.double(json_parsed_search$location$latitude)
+  
+  venue_data
+}
+
+
 country <- "DE"
-venues <- GET(url = "https://app.ticketmaster.com/discovery/v2/venues.json?",
-              query = list(locale = "*",
-                           countryCode = country,
-                           apikey = tm_key))
 
-content_venues <- content(venues)
-json_parsed_search <- fromJSON(content(venues, as = "text"))[["_embedded"]][["venues"]]
+response_1 <- first.quest(country, tm_key)
+content_1 <- content(response1)
 
-n = as.numeric(content_venues$page$size)
+venue_data_1 <- first.df(country, tm_key, content1)
 
-venue_data <-
-  data.frame(
-    name = character(n),
-    city = character(n),
-    postalCode = character(n),
-    address = character(n),
-    url = character(n),
-    longitude = double(n),
-    latitude = double (n)
-  )
-
-venue_data[, 1] <- json_parsed_search$name
-venue_data[, 2] <- json_parsed_search$city$name
-venue_data[, 3] <- json_parsed_search$postalCode
-venue_data[, 4] <- json_parsed_search$address$line1
-venue_data[, 5] <- json_parsed_search$url
-venue_data[, 6] <- json_parsed_search$location$longitude
-venue_data[, 7] <- json_parsed_search$location$latitude
-
-glimpse(venue_data)
+glimpse(venue_data_1)
 ``` 
 
 The response object delivers a list of length 3. The element "_embedded"
@@ -91,58 +109,121 @@ total, there are 12238 venues that are stored on multiple pages.
 The pages can be iterated by using the parameter `page`.
 
 ```{r germanVenues500}
-venues <- GET(url = "https://app.ticketmaster.com/discovery/v2/venues.json?",
-              query = list(locale = "*",
-                           size = 500,
-                           countryCode = country,
-                           apikey = tm_key))
 
-content_venues <- content(venues)
+second.quest <- function(country, size, key){
 
-n = as.numeric(content_venues$page$totalElements)
-l = as.numeric(content_venues$page$totalPages)
-
-venue_data <-
-  data.frame(
-    name = character(n),
-    city = character(n),
-    postalCode = character(n),
-    address = character(n),
-    url = character(n),
-    longitude = double(n),
-    latitude = double (n)
-  )
-
-for (i in 1:l){
   venues <- GET(url = "https://app.ticketmaster.com/discovery/v2/venues.json?",
-              query = list(locale = "*",
-                           size = 500,
-                           countryCode = country,
-                           apikey = tm_key,
-                           page = i-1))
-  json_parsed_search <- fromJSON(content(venues, as = "text"))[["_embedded"]][["venues"]]
+                query = list(locale = "*",
+                             size = size,
+                             countryCode = country,
+                             apikey = key))
   
-  rows <- as.numeric(nrow(json_parsed_search))
+  content_venues <- content(venues)
   
-  if (i == l) {
-    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 1] <- json_parsed_search$name
-    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 2] <- json_parsed_search$city$name
-    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 3] <- json_parsed_search$postalCode
-    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 4] <- json_parsed_search$address$line1
-    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 5] <- json_parsed_search$url
-    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 6] <- json_parsed_search$location$longitude
-    venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 7] <- json_parsed_search$location$latitude
-  } else {
-    venue_data[((i-1)*500 + 1):(i*rows), 1] <- json_parsed_search$name
-    venue_data[((i-1)*500 + 1):(i*rows), 2] <- json_parsed_search$city$name
-    venue_data[((i-1)*500 + 1):(i*rows), 3] <- json_parsed_search$postalCode
-    venue_data[((i-1)*500 + 1):(i*rows), 4] <- json_parsed_search$address$line1
-    venue_data[((i-1)*500 + 1):(i*rows), 5] <- json_parsed_search$url
-    venue_data[((i-1)*500 + 1):(i*rows), 6] <- json_parsed_search$location$longitude
-    venue_data[((i-1)*500 + 1):(i*rows), 7] <- json_parsed_search$location$latitude
+  n = as.numeric(content_venues$page$totalElements)
+  l = as.numeric(content_venues$page$totalPages)
+  
+  venue_data <-
+    data.frame(
+      name = character(n),
+      city = character(n),
+      postalCode = character(n),
+      address = character(n),
+      url = character(n),
+      longitude = double(n),
+      latitude = double (n)
+    )
+  
+  for (i in 1:l){
+    venues <- GET(url = "https://app.ticketmaster.com/discovery/v2/venues.json?",
+                query = list(locale = "*",
+                             size = size,
+                             countryCode = country,
+                             apikey = key,
+                             page = i-1))
+    json_parsed_search <- fromJSON(content(venues, as = "text"))[["_embedded"]][["venues"]]
+    
+    rows <- as.numeric(nrow(json_parsed_search))
+    
+    if (i == l) {
+      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 1] <- json_parsed_search$name
+      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 2] <- json_parsed_search$city$name
+      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 3] <- json_parsed_search$postalCode
+      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 4] <- json_parsed_search$address$line1
+      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 5] <- json_parsed_search$url
+      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 6] <- as.double(json_parsed_search$location$longitude)
+      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 7] <- as.double(json_parsed_search$location$latitude)
+    } else {
+      venue_data[((i-1)*500 + 1):(i*rows), 1] <- json_parsed_search$name
+      venue_data[((i-1)*500 + 1):(i*rows), 2] <- json_parsed_search$city$name
+      venue_data[((i-1)*500 + 1):(i*rows), 3] <- json_parsed_search$postalCode
+      venue_data[((i-1)*500 + 1):(i*rows), 4] <- json_parsed_search$address$line1
+      venue_data[((i-1)*500 + 1):(i*rows), 5] <- json_parsed_search$url
+      venue_data[((i-1)*500 + 1):(i*rows), 6] <- as.double(json_parsed_search$location$longitude)
+      venue_data[((i-1)*500 + 1):(i*rows), 7] <- as.double(json_parsed_search$location$latitude)
+    }
+    
+    
+    Sys.sleep(2)
   }
-  
-  
-  Sys.sleep(5)
+  venue_data
 }
+
+venue_data_2 <- second.quest(country, 500, tm_key)
+
+glimpse(venue_data_2)
 ``` 
+
+## 5 Visualizing the extracted data
+
+```{r visualization}
+
+visualization <- function(venue_data, long_min, long_max, lat_min, lat_max, country){
+  n = nrow(venue_data)
+  
+  for (i in 1:n){
+    if (is.na(venue_data$longitude[i])) {
+      
+    } else if(is.na(venue_data$latitude[i])){
+    
+    } else if(venue_data$longitude[i] < long_min) {
+      venue_data[i, 6] <- NA
+      venue_data[i, 7] <- NA
+    } else if (venue_data$longitude[i] > long_max) {
+      venue_data[i, 6] <- NA
+      venue_data[i, 7] <- NA
+    } else if(venue_data$latitude[i] < lat_min) {
+      venue_data[i, 6] <- NA
+      venue_data[i, 7] <- NA
+    } else if (venue_data$latitude[i] > lat_max){
+      venue_data[i, 6] <- NA
+      venue_data[i, 7] <- NA
+    }
+  }
+  #check with row 792, whether it worked
+  
+  vis <- ggplot() + 
+          geom_polygon(
+            aes(x = long, y = lat, group = group), data = map_data("world", region = country),
+            fill = "grey90", color = "black") + 
+          theme_void() + coord_quickmap() + 
+          labs(title = "Event locations across Germany", 
+               caption = "Source: ticketmaster.com") + 
+          theme(title = element_text(size = 8, face = 'bold'),
+                plot.caption = element_text(face = "italic")) + 
+                geom_point(aes(x = longitude, y = latitude), data = venue_data,
+                           na.rm = TRUE)
+  
+  vis
+}
+
+region = "Germany"
+
+plot_1 <- visualization(venue_data_2, 5.866944, 15.043611, 47.271679, 55.0846, region)
+plot_1
+# NA-values are silently removed
+```
+
+## 6 Event location in other countries
+
+use functions
