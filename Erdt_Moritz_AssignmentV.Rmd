@@ -51,11 +51,9 @@ first.quest <- function(country, key) {
   venues
 }
 
-first.df <- function(venues) {
+first.df <- function(venues, content_venues) {
   # Processes the response from Ticketmaster.com
   json_parsed_search <- fromJSON(content(venues, as = "text"))[["_embedded"]][["venues"]]
-  
-  content_venues <- content(venues)
   
   n = as.numeric(content_venues$page$size)
   
@@ -85,9 +83,9 @@ first.df <- function(venues) {
 country <- "DE"
 
 response_1 <- first.quest(country, tm_key)
-content_1 <- content(response1)
+content_1 <- content(response_1)
 
-venue_data_1 <- first.df(country, tm_key, content1)
+venue_data_1 <- first.df(response_1, content_1)
 
 glimpse(venue_data_1)
 ``` 
@@ -169,6 +167,9 @@ second.quest <- function(country, size, key){
   venue_data
 }
 
+content_1$page$totalElements
+
+# The parameter size can take a maximum value of 500
 venue_data_2 <- second.quest(country, 500, tm_key)
 
 glimpse(venue_data_2)
@@ -202,12 +203,14 @@ visualization <- function(venue_data, long_min, long_max, lat_min, lat_max, coun
   }
   #check with row 792, whether it worked
   
+  
+  cap = paste("Event locations across", country)
   vis <- ggplot() + 
           geom_polygon(
             aes(x = long, y = lat, group = group), data = map_data("world", region = country),
             fill = "grey90", color = "black") + 
           theme_void() + coord_quickmap() + 
-          labs(title = "Event locations across Germany", 
+          labs(title = cap, 
                caption = "Source: ticketmaster.com") + 
           theme(title = element_text(size = 8, face = 'bold'),
                 plot.caption = element_text(face = "italic")) + 
@@ -226,4 +229,41 @@ plot_1
 
 ## 6 Event location in other countries
 
-use functions
+To see the event locations in the Netherlands, the prior functions are re-used
+with new parametrizations.
+
+```{r analysisNL1}
+
+# Task 2 and 3
+country = "NL"
+
+response_2 <- first.quest(country, tm_key)
+content_2 <- content(response_2)
+
+venue_data_3 <- first.df(response_2, content_2)
+
+glimpse(venue_data_3)
+``` 
+
+```{r analysisNL2}
+
+# Task 4
+
+content_2$page$totalElements
+
+venue_data_4 <- second.quest(country, 500, tm_key)
+
+glimpse(venue_data_4)
+```
+
+```{r analysisNL3}
+
+# Task 5
+
+region = "Netherlands"
+
+# Northernmost point in sea, but similar results
+plot_2 <- visualization(venue_data_4, 3.358333, 7.227778, 50.750417, 53.555, region)
+plot_2
+# NA-values are silently removed
+```
