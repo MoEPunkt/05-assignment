@@ -18,29 +18,32 @@ source("C:/Users/morit/Google Drive/Master/studium/01_WS2021/data-science-projec
 
 ## General Note
 
-This is the solution for the fourth assignment in Data Science Project 
+This is the solution for the fifth assignment in Data Science Project 
 Management. It has been written by myself without any help or cooperation.
 
 ## 1. Setting up a new GitHub repository
-A GitHub repository has been created to document the solution properly.
-I can be seen [here](https://github.com/MoEPunkt/05-assignment.git).
-
-save searchstrings so  we can just insert them into a function
-use paste ()
-source api-script
-
+A public GitHub repository has been created to document the solution properly.
+I can be accessed [here](https://github.com/MoEPunkt/05-assignment.git).
 
 ## 2. Getting to know the API
 
-rate limit 5000
-5 requests per second
+This assignment deals with the API of Ticketmaster.com. 
+The rules allow for 5000 API calls per day with a rate limitation of 5 requests 
+per second.
+Further, the received API key is sourced into this script.
 
 ## 3. Interacting with the API - the basics
 
-default value of the page size of the response : 20
+The used R-packages to deal with APIs are `{httr}`, `{rlist}`, `{jsonlite}` and
+`{tidyverse}`. For the visualization of the extracted data in task 5, the 
+package `{maps}` is needed.
 
-note: https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/#search-venues-v2
-```{r germanVenues}
+To ensure reusability of the code, the functions `first.quest(country, key)`, 
+which performs the first `GET` request, and `first.df(venues, content_venues)`,
+which creates a data frame based on the response of a `GET` request, have been 
+implemented.
+
+```{r functions1, include = FALSE, echo = FALSE}
 
 first.quest <- function(country, key) {
   # Gets the response from Ticketmaster.com and returns it
@@ -78,7 +81,15 @@ first.df <- function(venues, content_venues) {
   
   venue_data
 }
+```
 
+`country` is set to the country code of Germany, `"DE"`, and will be used for 
+the following tasks.
+
+With that, the command for the first `GET` request for venues in Germany takes
+the following form:
+
+```{r analysisDE1, echo = TRUE}
 
 country <- "DE"
 
@@ -90,23 +101,41 @@ venue_data_1 <- first.df(response_1, content_1)
 glimpse(venue_data_1)
 ``` 
 
-The response object delivers a list of length 3. The element "_embedded"
-contains the 20 venues, that are returned. The element "links" contains pointers
-to the current side as well as to the prior, the next and the last page. The 
-element "page" specifies the response: the returned page consists of 20 items,
-in total there are 12238 elements that are stored on 612 pages.
+The status of the response is `r status_code(response_1)`, which indicates the
+success of the request. 
+`content()`  delivers a list of length `r length(content_1)` that supports 
+on understanding the data. 
+The element `_embedded` contains the 
+`r length(content_1$'_embedded'$venues)` venues, that are returned. 
+The element `links` contains pointers to the current page as well as to the 
+first, the next and the last one. The element `page` specifies the response: 
+the returned page consists of `r content_1$page$size` items, in total there are 
+`r content_1$page$totalElements` elements that are stored on 
+`r content_1$page$totalPages` pages.
 
 From trying to set `size = 12238`, we receive the message, that the spezified 
-size of elements needs to be less than 500.
-
-Note: replace explicit numbers with variables
+size of elements must not exceed 500.
 
 ## 4 Interacting with the API - advanced
-The request from exercise 3 did not return all event locations in Germany. In
-total, there are 12238 venues that are stored on multiple pages.
-The pages can be iterated by using the parameter `page`.
+The request from task 3 did not return all event locations in Germany. As stated
+in the list element `page`, the total number of venues is
+`r content_1$page$totalElements`.
+The pages can be iterated by using the parameter `page` in the `GET` request.
+This parameter starts by default at the value `0`.
+In order to adjust the returned number of elements per page, the function 
+`second.quest(country, size, key)` takes the additional parameter `size`.
+To determine the number of pages, a first `GET` request is performed and the 
+number of results pages can be extracted. This value is used in a `for` loop 
+that iterates through the pages. 
+Since the API sets a a rate limitation of 5 requests per second, 
+`Sys.sleep(time)` is used to avoid sending more than 5 requests per second. 
+While working on the task, it appeared that `Sys.sleep(0.2)` leads to a problem
+in filling the data frame properly. This problem is solved by setting 
+`time = 0.4`.
+Further, the data frame that stores the extracted data is initialized directly
+from the information of the first request.
 
-```{r germanVenues500}
+```{r functions2, echo = FALSE, include = FALSE}
 
 second.quest <- function(country, size, key){
 
@@ -144,32 +173,35 @@ second.quest <- function(country, size, key){
     rows <- as.numeric(nrow(json_parsed_search))
     
     if (i == l) {
-      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 1] <- json_parsed_search$name
-      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 2] <- json_parsed_search$city$name
-      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 3] <- json_parsed_search$postalCode
-      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 4] <- json_parsed_search$address$line1
-      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 5] <- json_parsed_search$url
-      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 6] <- as.double(json_parsed_search$location$longitude)
-      venue_data[((i-1)*500 + 1):((i-1)*500 + rows), 7] <- as.double(json_parsed_search$location$latitude)
+      venue_data[((i-1)*size + 1):((i-1)*size + rows), 1] <- json_parsed_search$name
+      venue_data[((i-1)*size + 1):((i-1)*size + rows), 2] <- json_parsed_search$city$name
+      venue_data[((i-1)*size + 1):((i-1)*size + rows), 3] <- json_parsed_search$postalCode
+      venue_data[((i-1)*size + 1):((i-1)*size + rows), 4] <- json_parsed_search$address$line1
+      venue_data[((i-1)*size + 1):((i-1)*size + rows), 5] <- json_parsed_search$url
+      venue_data[((i-1)*size + 1):((i-1)*size + rows), 6] <- as.double(json_parsed_search$location$longitude)
+      venue_data[((i-1)*size + 1):((i-1)*size + rows), 7] <- as.double(json_parsed_search$location$latitude)
     } else {
-      venue_data[((i-1)*500 + 1):(i*rows), 1] <- json_parsed_search$name
-      venue_data[((i-1)*500 + 1):(i*rows), 2] <- json_parsed_search$city$name
-      venue_data[((i-1)*500 + 1):(i*rows), 3] <- json_parsed_search$postalCode
-      venue_data[((i-1)*500 + 1):(i*rows), 4] <- json_parsed_search$address$line1
-      venue_data[((i-1)*500 + 1):(i*rows), 5] <- json_parsed_search$url
-      venue_data[((i-1)*500 + 1):(i*rows), 6] <- as.double(json_parsed_search$location$longitude)
-      venue_data[((i-1)*500 + 1):(i*rows), 7] <- as.double(json_parsed_search$location$latitude)
+      venue_data[((i-1)*size + 1):(i*rows), 1] <- json_parsed_search$name
+      venue_data[((i-1)*size + 1):(i*rows), 2] <- json_parsed_search$city$name
+      venue_data[((i-1)*size + 1):(i*rows), 3] <- json_parsed_search$postalCode
+      venue_data[((i-1)*size + 1):(i*rows), 4] <- json_parsed_search$address$line1
+      venue_data[((i-1)*size + 1):(i*rows), 5] <- json_parsed_search$url
+      venue_data[((i-1)*size + 1):(i*rows), 6] <- as.double(json_parsed_search$location$longitude)
+      venue_data[((i-1)*size + 1):(i*rows), 7] <- as.double(json_parsed_search$location$latitude)
     }
     
     
-    Sys.sleep(2)
+    Sys.sleep(0.4)
   }
   venue_data
 }
+```
 
-content_1$page$totalElements
+By calling `second.quest(country, size, key)` to obtain all venues in Germany, 
+the following result is obtained
+```{r analysisDE2, echo = TRUE, include = TRUE}
 
-# The parameter size can take a maximum value of 500
+# The parameter "size" can take a maximum value of 500
 venue_data_2 <- second.quest(country, 500, tm_key)
 
 glimpse(venue_data_2)
@@ -177,32 +209,36 @@ glimpse(venue_data_2)
 
 ## 5 Visualizing the extracted data
 
-```{r visualization}
+For the visualization, the function 
+`visualization(venue_data, long_min, long_max, lat_min, lat_max, country)` has 
+been implemented. Prior to the mapping, all values that lie beyond the German 
+borders are set to `NA`. Therefore, the parameters `long_min`, `long_max`, 
+`lat_min` and `lat_max` determine the borders that must not be exceeded.
+For the creation of the plot, the parameter `country` is used to specify the 
+visualized country, but must not be confused with the country code that has
+been used before.
+
+To ensure reusability in the following task, the given code has been adjusted,
+such that it is possible to run the function for different countries.
+
+```{r functions3, echo = FALSE, include = FALSE}
 
 visualization <- function(venue_data, long_min, long_max, lat_min, lat_max, country){
-  n = nrow(venue_data)
+  n <- nrow(venue_data)
   
+  # Set the values for longitude and latitude that lie outside the boundaries of 
+  # a country to NA
   for (i in 1:n){
-    if (is.na(venue_data$longitude[i])) {
-      
-    } else if(is.na(venue_data$latitude[i])){
+    if ((is.na(venue_data$longitude[i])) | (is.na(venue_data$latitude[i]))){
     
-    } else if(venue_data$longitude[i] < long_min) {
-      venue_data[i, 6] <- NA
-      venue_data[i, 7] <- NA
-    } else if (venue_data$longitude[i] > long_max) {
-      venue_data[i, 6] <- NA
-      venue_data[i, 7] <- NA
-    } else if(venue_data$latitude[i] < lat_min) {
-      venue_data[i, 6] <- NA
-      venue_data[i, 7] <- NA
-    } else if (venue_data$latitude[i] > lat_max){
-      venue_data[i, 6] <- NA
-      venue_data[i, 7] <- NA
+    } else if((venue_data[i, 6] < long_min) |
+              (venue_data[i, 6] > long_max) | 
+              (venue_data[i, 7] < lat_min) |
+              (venue_data[i, 7] > lat_max)){
+                venue_data[i, 6] <- NA
+                venue_data[i, 7] <- NA
     }
   }
-  #check with row 792, whether it worked
-  
   
   cap = paste("Event locations across", country)
   vis <- ggplot() + 
@@ -216,24 +252,33 @@ visualization <- function(venue_data, long_min, long_max, lat_min, lat_max, coun
                 plot.caption = element_text(face = "italic")) + 
                 geom_point(aes(x = longitude, y = latitude), data = venue_data,
                            na.rm = TRUE)
-  
+  # NA-values are silently removed
   vis
 }
+```
 
+With these adjustment, the following plot indicates the locations of the event
+venues across Germany:
+
+```{r visualizationDE, echo = TRUE, include = TRUE}
 region = "Germany"
 
 plot_1 <- visualization(venue_data_2, 5.866944, 15.043611, 47.271679, 55.0846, region)
 plot_1
-# NA-values are silently removed
 ```
 
 ## 6 Event location in other countries
 
-To see the event locations in the Netherlands, the prior functions are re-used
-with new parametrizations.
+To see the event locations across the Netherlands, the prior functions are 
+reused with new parametrizations. 
+Therefore, `country` is now set to `"NL"`.
 
+The rules for using the API remain unchanged with a maximum of 5000 API calls 
+per day with a rate limitation of 5 requests per second.
+
+A first quest for the event venues across the Netherlands yields the following
+result:
 ```{r analysisNL1}
-
 # Task 2 and 3
 country = "NL"
 
@@ -245,25 +290,46 @@ venue_data_3 <- first.df(response_2, content_2)
 glimpse(venue_data_3)
 ``` 
 
+The status of the response is `r status_code(response_2)`, which indicates the
+success of the request. 
+`content()`  delivers a list of length `r length(content_2)` that supports on 
+understanding the data. 
+The element `_embedded` contains the `r length(content_2$'_embedded'$venues)` 
+venues, that are returned. 
+The element `links` contains pointers to the current page as well as to the 
+first, the next and the last page. 
+The element `page` specifies the response: 
+the returned page consists of `r content_2$page$size` items, in total there are 
+`r content_2$page$totalElements` elements that are stored on 
+`r content_2$page$totalPages` pages.
+
+The maximum of `500` elements per page does still hold. So, `size = 500` in the
+function call.
+
+Reusing `second.quest(country, size, key)` with the adjusted parametrization
+yields the following result:
+
 ```{r analysisNL2}
-
 # Task 4
-
-content_2$page$totalElements
 
 venue_data_4 <- second.quest(country, 500, tm_key)
 
 glimpse(venue_data_4)
 ```
 
-```{r analysisNL3}
+The values that determine the borders of the Netherlands have been derived from
+the extreme points of the Netherlands as listed on 
+[Wikipedia](https://en.wikipedia.org/wiki/List_of_extreme_points_of_the_Netherlands).
 
+The plot of the event venues across the Netherlands is displayed in the 
+following:
+
+```{r analysisNL3}
 # Task 5
 
 region = "Netherlands"
 
-# Northernmost point in sea, but similar results
+# Northernmost point in sea, but identical results
 plot_2 <- visualization(venue_data_4, 3.358333, 7.227778, 50.750417, 53.555, region)
 plot_2
-# NA-values are silently removed
 ```
