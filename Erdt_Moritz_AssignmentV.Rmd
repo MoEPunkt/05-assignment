@@ -1,11 +1,13 @@
 ---
 title: "Erdt_Moritz_AssignmentV"
+subtitle: "Data Science Project Management"
 author: "Moritz Erdt"
 date: "16.02.2021"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
+
 knitr::opts_chunk$set (echo = TRUE)
 library(httr)
 library(rlist)
@@ -19,7 +21,8 @@ source("C:/Users/morit/Google Drive/Master/studium/01_WS2021/data-science-projec
 ## General Note
 
 This is the solution for the fifth assignment in Data Science Project 
-Management. It has been written by myself without any help or cooperation.
+Management. It has been written by myself in collaboration/exchange with Jan 
+Besler (Student ID 5629079).
 
 ## 1. Setting up a new GitHub repository
 A public GitHub repository has been created to document the solution properly.
@@ -117,21 +120,26 @@ From trying to set `size = 12238`, we receive the message, that the spezified
 size of elements must not exceed 500.
 
 ## 4 Interacting with the API - advanced
+
 The request from task 3 did not return all event locations in Germany. As stated
 in the list element `page`, the total number of venues is
 `r content_1$page$totalElements`.
+
 The pages can be iterated by using the parameter `page` in the `GET` request.
 This parameter starts by default at the value `0`.
+
 In order to adjust the returned number of elements per page, the function 
 `second.quest(country, size, key)` takes the additional parameter `size`.
 To determine the number of pages, a first `GET` request is performed and the 
-number of results pages can be extracted. This value is used in a `for` loop 
+number of resulting pages can be extracted. This value is used in a `for` loop 
 that iterates through the pages. 
+
 Since the API sets a a rate limitation of 5 requests per second, 
 `Sys.sleep(time)` is used to avoid sending more than 5 requests per second. 
 While working on the task, it appeared that `Sys.sleep(0.2)` leads to a problem
-in filling the data frame properly. This problem is solved by setting 
-`time = 0.4`.
+in filling the data frame properly. If this problem occurs, it can solved by 
+setting `time = 0.4`.
+
 Further, the data frame that stores the extracted data is initialized directly
 from the information of the first request.
 
@@ -189,16 +197,15 @@ second.quest <- function(country, size, key){
       venue_data[((i-1)*size + 1):(i*rows), 6] <- as.double(json_parsed_search$location$longitude)
       venue_data[((i-1)*size + 1):(i*rows), 7] <- as.double(json_parsed_search$location$latitude)
     }
-    
-    
-    Sys.sleep(0.4)
+  
+    Sys.sleep(0.2)
   }
   venue_data
 }
 ```
 
 By calling `second.quest(country, size, key)` to obtain all venues in Germany, 
-the following result is obtained
+the following result is obtained:
 ```{r analysisDE2, echo = TRUE, include = TRUE}
 
 # The parameter "size" can take a maximum value of 500
@@ -214,6 +221,7 @@ For the visualization, the function
 been implemented. Prior to the mapping, all values that lie beyond the German 
 borders are set to `NA`. Therefore, the parameters `long_min`, `long_max`, 
 `lat_min` and `lat_max` determine the borders that must not be exceeded.
+
 For the creation of the plot, the parameter `country` is used to specify the 
 visualized country, but must not be confused with the country code that has
 been used before.
@@ -261,13 +269,14 @@ With these adjustment, the following plot indicates the locations of the event
 venues across Germany:
 
 ```{r visualizationDE, echo = TRUE, include = TRUE}
+
 region = "Germany"
 
 plot_1 <- visualization(venue_data_2, 5.866944, 15.043611, 47.271679, 55.0846, region)
 plot_1
 ```
 
-## 6 Event location in other countries
+## 6 Event locations in other countries
 
 To see the event locations across the Netherlands, the prior functions are 
 reused with new parametrizations. 
@@ -279,6 +288,7 @@ per day with a rate limitation of 5 requests per second.
 A first quest for the event venues across the Netherlands yields the following
 result:
 ```{r analysisNL1}
+
 # Task 2 and 3
 country = "NL"
 
@@ -310,8 +320,8 @@ Reusing `second.quest(country, size, key)` with the adjusted parametrization
 yields the following result:
 
 ```{r analysisNL2}
-# Task 4
 
+# Task 4
 venue_data_4 <- second.quest(country, 500, tm_key)
 
 glimpse(venue_data_4)
@@ -325,8 +335,8 @@ The plot of the event venues across the Netherlands is displayed in the
 following:
 
 ```{r analysisNL3}
-# Task 5
 
+# Task 5
 region = "Netherlands"
 
 # Northernmost point in sea, but identical results
